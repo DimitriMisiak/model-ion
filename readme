@@ -1,0 +1,7 @@
+Modélisation de la voie ionisation.
+- Utilisation de Lcapy
+- Calcul analytique
+- Evaluation numérique
+- Obtention de la sensibilité des électrodes
+- Obtention du bruit affectant la mesure
+- Calcul de la résolution de la voie ionization
