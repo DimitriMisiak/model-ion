@@ -8,9 +8,15 @@ Created on Mon Jul 20 00:55:35 2020
 
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+
 import numpy as np
 
 plt.close('all')
+
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.size'] = 9
+plt.rcParams['lines.linewidth'] = 1
 
 def custom_autoscale(axis, xdata, ydata):
     
@@ -37,13 +43,13 @@ def basic_corner(samples, labels, axes=None, num='Basic corner plot', **kwargs):
     assert samples.ndim == 2
     
     clen, cnum = samples.shape
-    assert clen > cnum
+    # assert clen > cnum
     
     nplot = cnum - 1
     
     new_flag = False
     if axes is None:
-        fig, axes = plt.subplots(nrows=nplot, ncols=nplot, figsize=(9, 9),
+        fig, axes = plt.subplots(nrows=nplot, ncols=nplot, figsize=(6.3, 6.3),
                                  num=num, sharex='col', sharey='row')
         new_flag = True
     
@@ -59,7 +65,7 @@ def basic_corner(samples, labels, axes=None, num='Basic corner plot', **kwargs):
                'zorder':9,
                'color':'k',
                'markersize':6,
-               'alpha':0.5,
+               # 'alpha':0.5,
                }
     options.update(kwargs)
     
@@ -82,7 +88,7 @@ def basic_corner(samples, labels, axes=None, num='Basic corner plot', **kwargs):
                     **options
             )            
             
-            custom_autoscale(ax, x_data, y_data)
+            # custom_autoscale(ax, x_data, y_data)
         
             ax.grid(alpha=0.3)
         
@@ -94,14 +100,14 @@ def basic_corner(samples, labels, axes=None, num='Basic corner plot', **kwargs):
             if new_flag:
                 if (i==nplot-1):
                     ax.set_xlabel(
-                            '{}'.format(
+                            '$V_{}$ / ($\mu $V/keV)'.format(
                                     labels[(cnum-1+j)%cnum].replace('_', ' ')
                             )
                     )
                         
                 if (j==0):
                     ax.set_ylabel(
-                            '{}'.format(
+                            '$V_{}$ / ($\mu $V/keV)'.format(
                                     labels[i].replace('_', ' ')
                             )
                     )
@@ -143,14 +149,21 @@ event_dict = loc_dict.copy()
 samples_dict = dict()
 for k in loc_dict.keys():
     loc_array = loc_dict[k]
-    # mu_array = mu_dict[k]
-    mu_array = 0.001
-    samples_dict[k] = np.random.normal(loc=loc_array, scale=mu_array, size=(nsamples, 4))
+    ### mu_array = mu_dict[k]
+    # mu_array = 0.1
+    # samples_dict[k] = np.random.normal(loc=loc_array, scale=mu_array, size=(nsamples, 4))
+    samples_dict[k] = np.array([loc_array])
 
-fig, axes = basic_corner(samples_dict['bulk'], labels='ABCD', color='limegreen', marker='s', label='Bulkw/ 0pF')
-fig, axes = basic_corner(samples_dict['veto top'], axes=axes, labels='ABCD', color='orange',marker='s', label='Veto Topw/ 0pF')
-fig, axes = basic_corner(samples_dict['veto bottom'], axes=axes, labels='ABCD', color='crimson',marker='s', label='Veto Bottomw/ 0pF')
-fig, axes = basic_corner(samples_dict['equator'], axes=axes, labels='ABCD', color='slateblue',marker='s', label='Equatorw/ 0pF')
+
+fig, axes = basic_corner(samples_dict['bulk'], labels='ABCD', color='limegreen', marker='s', label='Bulk w/ 0pF')
+fig, axes = basic_corner(samples_dict['veto top'], axes=axes, labels='ABCD', color='orange',marker='s', label='Veto Top w/ 0pF')
+fig, axes = basic_corner(samples_dict['veto bottom'], axes=axes, labels='ABCD', color='crimson',marker='s', label='Veto Bottom w/ 0pF')
+fig, axes = basic_corner(samples_dict['equator'], axes=axes, labels='ABCD', color='slateblue',marker='s', label='Equator w/ 0pF')
+
+# fig, axes = basic_corner(samples_dict['bulk'], labels='ABCD', color='limegreen', marker='.', markersize=1, label='Bulkw/ 0pF')
+# fig, axes = basic_corner(samples_dict['veto top'], axes=axes, labels='ABCD', color='orange',marker='.', markersize=1, label='Veto Topw/ 0pF')
+# fig, axes = basic_corner(samples_dict['veto bottom'], axes=axes, labels='ABCD', color='crimson',marker='.', markersize=1, label='Veto Bottomw/ 0pF')
+# fig, axes = basic_corner(samples_dict['equator'], axes=axes, labels='ABCD', color='slateblue',marker='.', markersize=1, label='Equatorw/ 0pF')
 
 for ax in np.ravel(axes):
     ax.axvline(0, ls='--', color='k')
@@ -182,22 +195,50 @@ color_dict = {
 samples_dict = dict()
 for k in loc_dict.keys():
     loc_array = loc_dict[k]
-    # mu_array = mu_dict[k]
-    mu_array = 0.001
-    samples_dict[k] = np.random.normal(loc=loc_array, scale=mu_array, size=(nsamples, 4))
+    ### mu_array = mu_dict[k]
+    # mu_array = 0.001
+    # samples_dict[k] = np.random.normal(loc=loc_array, scale=mu_array, size=(nsamples, 4))
+    samples_dict[k] = np.array([loc_array])
 
 fig, axes = basic_corner(samples_dict['bulk'], axes=axes, labels='ABCD', color='limegreen', marker='o',mec='k',  label='Bulk w/ 150pF')
 fig, axes = basic_corner(samples_dict['veto top'], axes=axes, labels='ABCD', color='orange',marker='o', mec='k', label='Veto Top w/ 150pF')
 fig, axes = basic_corner(samples_dict['veto bottom'], axes=axes, labels='ABCD', color='crimson',marker='o', mec='k', label='Veto Bottom w/ 150pF')
 fig, axes = basic_corner(samples_dict['equator'], axes=axes, labels='ABCD', color='slateblue',marker='o', mec='k', label='Equator w/ 150pF')
 
+axes[0, 0].set_ylim(-2, 4)
+axes[1, 0].set_ylim(-4, 2)
+axes[2, 0].set_ylim(-4, 2)
+
+axes[2, 0].set_xlim(-2, 4)
+axes[2, 1].set_xlim(-2, 4)
+axes[2, 2].set_xlim(-4, 2)
 
 # fig, axes = basic_corner(samples_dict['bulk'], axes=axes, labels='ABCD', color='k', label='w/ 50pF')
 # fig, axes = basic_corner(samples_dict['veto top'], axes=axes, labels='ABCD', color='k')
 # fig, axes = basic_corner(samples_dict['veto bottom'], axes=axes, labels='ABCD', color='k')
 # fig, axes = basic_corner(samples_dict['equator'], axes=axes, labels='ABCD', color='k')
 
+### Grid
+for ax in fig.axes:
+    ax.grid(True, alpha=0.5, which='major')
+    ax.grid(True, alpha=0.1, which='minor')
 
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax.yaxis.set_minor_locator(mticker.MultipleLocator(0.25))
+
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax.xaxis.set_minor_locator(mticker.MultipleLocator(0.25))
+
+axes[2,1].set_xticks(axes[2, 1].get_xticks()[2:-2])
+axes[1,0].set_yticks(axes[1, 0].get_yticks()[2:-2])
+
+### Figure adjustments
+fig.align_ylabels(fig.axes)    
+fig.tight_layout()
+fig.subplots_adjust(wspace=.0, hspace=0.)
+
+### Saving
+fig.savefig('pl38_predictive_sensitivity.pdf')
 
 ### Bonus
 

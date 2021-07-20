@@ -18,10 +18,17 @@ from lcapy import Circuit, s, f, j, t, omega, expr, oo, symbol
 import lcapy
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from tqdm import tqdm
 import sympy as sy
 
 plt.close('all')
+
+plt.close('all')
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.size'] = 9
+plt.rcParams['lines.linewidth'] = 1
+
 
 maxwell_matrix = np.loadtxt('planar38_maxwell.csv', comments='%', delimiter=',')
 
@@ -76,16 +83,29 @@ Vfb = '(4*k*T*Rfb)**0.5 '
 InN = f'Cc*{In}/(Cc + Cfb + Chemt)'
 IjN = f'{Vj}/Rpolar'
 
+### old
+# noise_eval_dict = {
+#     'T': 20e-3, #K
+#     'k': 1.38e-23, #J/K,
+#     'e0': 0.22e-9, #V
+#     'ea': 36e-9, #V*Hz**0.5
+#     'eb': 0, # V*Hz
+#     'i0': 4.0e-23, #A
+#     'ia': 2.6e-18, #A/Hz**0.5
+#     'ib': 0, #A/Hz
+# }
+
 noise_eval_dict = {
-    'T': 20e-3, #K
+    'T': 10e-3, #K
     'k': 1.38e-23, #J/K,
-    'e0': 0.22e-9, #V
-    'ea': 36e-9, #V*Hz**0.5
-    'eb': 0, # V*Hz
+    'e0': 2.56e-10, #V
+    'ea': 2.965e-8, #V*Hz**0.5
+    'eb': 5.343e-9, # V*Hz
     'i0': 4.0e-23, #A
     'ia': 2.6e-18, #A/Hz**0.5
     'ib': 0, #A/Hz
 }
+
 noise_eval_dict.update(eval_dict)
 
 # =============================================================================
@@ -135,7 +155,8 @@ ref_point = 'S_B'
 signal_sources = [source for source in cir.sources if not cir[source].is_noisy]
 noise_sources = [source for source in cir.sources if cir[source].is_noisy]
 
-freq_array = 10**np.linspace(0, 4, int(1e3))
+# freq_array = 10**np.linspace(0, 4, int(1e3))
+freq_array = 10**np.linspace(-1, 3, int(1e3))
 
 #%%
 # =============================================================================
@@ -238,45 +259,164 @@ plt.loglog(freq_array, noise_dict['Vj1']/noise_dict['Vj2'])
 plt.grid(which='minor')
 plt.axhline(0.728, ls='--', color='k')
 
-#%%
+
+
 # =============================================================================
-# NEP and RESOLUTION
+# STACKED PLOT
 # =============================================================================
-nep_dict = {k:NOISE/np.abs(v) for k,v in signal_dft_dict.items()}
-res_dict = {k:(np.trapz(4/nep**2, freq_array))**-0.5 for k,nep in nep_dict.items()}
-# NEP = NOISE / SIGNAL
-# invnep2 = 4/NEP**2
-# RES = (np.trapz(invnep2, freq_array))**-0.5
 
-# print('Resolution = ', RES*1e3, ' eV')
+### FIGURE
+fig = plt.figure(
+    figsize=(6.3,4),
+)
 
-### PLOT
-noise_color = 'coral'
-signal_color = 'slateblue'
+ax0 = plt.subplot2grid((2,1), (0,0), rowspan=1, colspan=1)
+ax1 = plt.subplot2grid((2,1), (1,0), rowspan=1, colspan=1, sharex=ax0)
 
-fig, axes = plt.subplots(nrows=2, sharex=True, figsize=(10,10))
+### Noise propagation
+ax = ax0
 
-ax = axes[0]
-ax.tick_params(axis='y', labelcolor=noise_color)
-ax.loglog(freq_array, NOISE, color=noise_color, lw=2)
-ax.set_ylabel('Noise LPSD [V/$\sqrt{Hz}$]', color=noise_color)
-ax_twin = ax.twinx()
-ax_twin.tick_params(axis='y', labelcolor=signal_color)
-for k,v in signal_dft_dict.items():
-    ax_twin.loglog(freq_array, np.abs(v), color=signal_color, lw=2, label=k)
-ax_twin.set_ylabel('Signal [V]', color=signal_color)
+noise_dict= dict()
+NOISE_squared = 0 * freq_array
+for source, noise_expr in noise_expr_dict.items():
 
-# ax.set_xlabel('Frequency [Hz]')
-ax_twin.legend()
-ax.grid()
+    # hack
+    noise_fun = noise_expr(omega)(f) 
+    noise_array = noise_fun.evaluate(freq_array)
+    
+    noise_dict[source] = noise_array
+    
+    NOISE_squared += noise_array**2
+    
+    if source == 'Vj1':
+        lab = r'$e^{S_B} \left( e_J^A \right)$'
+    elif source == 'Vj2':
+        lab = r'$e^{S_B} \left( e_J^B \right)$'
 
-ax = axes[1]
-for k,nep in nep_dict.items():
-    ax.loglog(freq_array, nep, color='crimson', label="{0}: {1:.1f} eV".format(k, res_dict[k]*1e3))
-ax.set_ylabel('Noise Equivalent Power (NEP)')
-ax.set_xlabel('Frequency [Hz]')
-ax.grid()
-ax.legend()
+    ax.loglog(freq_array, noise_array, label=lab)
 
+NOISE = NOISE_squared**0.5
+ax.loglog(freq_array, NOISE, label='$e^{S_B}_{tot}$', lw=1.5, color='k')
+
+# ax.plot(
+#         xdata,
+#         ydata[:, 0, 0],
+#         label='$C_{AA}$',
+#         marker='s',
+#         markersize=6
+# )
+
+### Noise comparison
+ax = ax1
+
+ax.plot(freq_array, noise_dict['Vj1']/noise_dict['Vj2'],
+          label=r'$\left\vert e^{S_B} \left( e_J^A \right) / e^{S_B} \left( e_J^B \right) \right\vert$')
+
+ax.axhline(0.728, ls='--', color='k', label='Asymptotic Ratio')
+ax.axvline(1.067, ls='--', color='r', label='$f_c = 1.067$ Hz')
+
+# ax.plot(
+#         xdata_fid,
+#         fdata,
+#         marker='.',
+#         color='dimgrey'
+# )
+
+### Axes labels
+ax1.set_ylabel(r'Ratio')
+ax0.set_ylabel(r'LPSD / (V/$\sqrt{\textsf{Hz}}$)')
+ax1.set_xlabel(r'Frequency / Hz')
+
+### Axes scale
+ax0.set_yscale('log')
+ax1.set_yscale('log')
+ax1.set_xscale('log')
+
+### Legends
+ax0.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+
+# # sneaky reference, default parameter
+# for ax in fig.axes:
+#     line_default = ax.axvline(
+#         x=3,
+#         label='Default value\n'+r'$d_{Cu} = 3\ \textsf{mm}$',
+#         lw=1, color='k', ls='--', alpha=0.5
+#     )
+
+ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+
+### Beautiful style/axes
+## ax0
+ax0.spines['bottom'].set_linewidth(2)
+
+plt.setp(ax0.get_xticklabels(), visible=False)
+
+## ax1
+# ax1.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+ax1.yaxis.set_minor_locator(mticker.MultipleLocator(0.2))
+ax1.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.1f'))
+ax1.yaxis.set_minor_formatter(mticker.FormatStrFormatter('%.1f'))
+# ax2.xaxis.set_major_locator(mticker.MultipleLocator(0.5))
+# ax2.xaxis.set_minor_locator(mticker.MultipleLocator(0.1))
+
+### Grid
+for ax in fig.axes:
+    ax.grid(True, alpha=0.5, which='major')
+    ax.grid(True, alpha=0.1, which='minor')
+
+ax1.set_xlim(1e-1, 1e3)
+ax1.set_ylim(6e-2, 1.1)
+
+### Figure adjustments
+fig.align_ylabels(fig.axes)    
 fig.tight_layout()
 fig.subplots_adjust(hspace=.0)
+
+### Saving
+fig.savefig('pl38_analytical_noise_propagation.pdf')
+
+
+#%%
+# # =============================================================================
+# # NEP and RESOLUTION
+# # =============================================================================
+# nep_dict = {k:NOISE/np.abs(v) for k,v in signal_dft_dict.items()}
+# res_dict = {k:(np.trapz(4/nep**2, freq_array))**-0.5 for k,nep in nep_dict.items()}
+# # NEP = NOISE / SIGNAL
+# # invnep2 = 4/NEP**2
+# # RES = (np.trapz(invnep2, freq_array))**-0.5
+
+# # print('Resolution = ', RES*1e3, ' eV')
+
+# ### PLOT
+# noise_color = 'coral'
+# signal_color = 'slateblue'
+
+# fig, axes = plt.subplots(nrows=2, sharex=True, figsize=(10,10))
+
+# ax = axes[0]
+# ax.tick_params(axis='y', labelcolor=noise_color)
+# ax.loglog(freq_array, NOISE, color=noise_color, lw=2)
+# ax.set_ylabel('Noise LPSD [V/$\sqrt{Hz}$]', color=noise_color)
+# ax_twin = ax.twinx()
+# ax_twin.tick_params(axis='y', labelcolor=signal_color)
+# for k,v in signal_dft_dict.items():
+#     ax_twin.loglog(freq_array, np.abs(v), color=signal_color, lw=2, label=k)
+# ax_twin.set_ylabel('Signal [V]', color=signal_color)
+
+# # ax.set_xlabel('Frequency [Hz]')
+# ax_twin.legend()
+# ax.grid()
+
+# ax = axes[1]
+# for k,nep in nep_dict.items():
+#     ax.loglog(freq_array, nep, color='crimson', label="{0}: {1:.1f} eV".format(k, res_dict[k]*1e3))
+# ax.set_ylabel('Noise Equivalent Power (NEP)')
+# ax.set_xlabel('Frequency [Hz]')
+# ax.grid()
+# ax.legend()
+
+# fig.tight_layout()
+# fig.subplots_adjust(hspace=.0)
+
+

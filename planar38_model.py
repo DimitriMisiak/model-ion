@@ -23,6 +23,10 @@ import sympy as sy
 
 plt.close('all')
 
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.size'] = 9
+plt.rcParams['lines.linewidth'] = 1
+
 maxwell_matrix = np.loadtxt('planar38_maxwell.csv', comments='%', delimiter=',')
 
 def maxwell_to_mutual(mat):
@@ -299,3 +303,138 @@ ax.legend()
 
 fig.tight_layout()
 fig.subplots_adjust(hspace=.0)
+
+
+#%%
+# =============================================================================
+# STACKED PLOT
+# =============================================================================
+
+### FIGURE
+fig = plt.figure(
+    figsize=(6.3,3.9),
+)
+
+ax0 = plt.subplot2grid((1,1), (0,0), rowspan=1, colspan=1)
+# ax1 = plt.subplot2grid((2,1), (1,0), rowspan=1, colspan=1, sharex=ax0)
+
+### Noise propagation
+ax = ax0
+
+NOISE_squared = 0 * freq_array
+for source, noise_expr in noise_expr_dict.items():
+
+    # hack
+    noise_fun = noise_expr(omega)(f) 
+    noise_array = noise_fun.evaluate(freq_array)
+    
+    NOISE_squared += noise_array**2
+    
+    col='k'
+    ls='-'
+    if source == 'Ij1':
+        lab = r'$e^{S_B} \left( e_J^A \right)$'
+        col='slateblue'
+        
+    elif source == 'Vj2':
+        lab = r'$e^{S_B} \left( e_J^B \right)$'    
+        col='coral'
+               
+    elif source == 'Vn2':
+        lab = r'$e^{S_B} \left( e_n^B \right)$'   
+        col='coral'
+        ls='dotted'
+        
+    if source == 'In1':
+        lab = r'$e^{S_B} \left( I_n^A \right)$'
+        col='slateblue'
+        ls='--'
+        
+    elif source == 'In2':
+        lab = r'$e^{S_B} \left( I_n^B \right)$'   
+        col='coral'
+        ls='--'
+        
+    ax.loglog(freq_array, noise_array, label=lab, color=col, ls=ls)
+
+NOISE = NOISE_squared**0.5
+ax.loglog(freq_array, NOISE, label='$e^{S_B}_{tot}$', lw=1.5, color='k')
+
+ax_twin = ax.twinx()
+ax_twin.tick_params(axis='y', labelcolor=signal_color)
+for k,v in signal_dft_dict.items():
+    ax_twin.loglog(freq_array, np.abs(v), ls='--', lw=1.5, label=k, color='k')
+ax_twin.set_ylabel(r'Signal PS / (V/keV)', color=signal_color)
+
+
+### Axes labels
+ax0.set_ylabel(r'Noise LPSD / (V/$\sqrt{\textsf{Hz}}$)')
+ax0.set_xlabel(r'Frequency / Hz')
+
+### Axes scale
+ax0.set_yscale('log')
+ax0.set_xscale('log')
+
+ax0.set_xlim(freq_array.min(), freq_array.max())
+ax0.set_ylim(1e-11, 3e-7)
+ax_twin.set_ylim(1e-11, 3e-7)
+
+# subtitles in legend
+import matplotlib.text as mtext
+class LegendTitle(object):
+    def __init__(self, text_props=None):
+        self.text_props = text_props or {}
+        super(LegendTitle, self).__init__()
+
+    def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        x0, y0 = handlebox.xdescent, handlebox.ydescent
+        # title = mtext.Text(x0, y0, r'\underline{' + orig_handle + '}',
+        #                    usetex=True, **self.text_props)
+        title = mtext.Text(x0, y0, orig_handle,
+                           usetex=True, **self.text_props)
+        handlebox.add_artist(title)
+        return title
+
+
+### Legends
+ax0.legend(
+    handles=[
+        'Noise propagation\n(on left axis):',
+        plt.Line2D([], [], lw=1, color='slateblue', ls='-'),
+        plt.Line2D([], [], lw=1, color='slateblue', ls='--'),
+        plt.Line2D([], [], lw=1, color='coral', ls='-'),
+        plt.Line2D([], [], lw=1, color='coral', ls='--'),
+        plt.Line2D([], [], lw=1, color='coral', ls='dotted'),
+        plt.Line2D([], [], lw=1.5, color='k'),
+        '',
+        'Signal propagation\n(on right axis):',
+        plt.Line2D([], [], lw=1.5, ls='--', color='k'),
+    ],
+    labels=[
+        '',
+        '$e_J^A$',
+        '$i_n^A$',
+        '$e_J^B$',
+        '$i_n^B$',        
+        '$e_n^B$',
+        'Total',
+        '',
+        '',
+        '$I_{{bulk}}$\n$\sigma_{{bulk}}^B = {:.2f}$ eV'.format(res_dict['Ibulk']*1000),
+    ],
+    handler_map={str: LegendTitle()},
+    loc='center left', bbox_to_anchor=(1.25, 0.5), frameon=False
+)
+
+### Grid
+for ax in fig.axes:
+    ax.grid(True, alpha=0.5, which='major')
+    ax.grid(True, alpha=0.1, which='minor')
+
+### Figure adjustments
+fig.align_ylabels(fig.axes)    
+fig.tight_layout()
+fig.subplots_adjust(hspace=.0)
+
+### Saving
+fig.savefig('pl38_noise_propagation.pdf')
